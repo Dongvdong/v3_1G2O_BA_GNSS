@@ -26,8 +26,8 @@ include_directories("/usr/local/include/eigen3")
 
 # G2O
 set(ALL_TARGET_LIBRARIES g2o_core g2o_types_slam3d g2o_solver_csparse g2o_stuff g2o_csparse_extension)
-include(/home/dongdong/V1_Project/v20_openvslam/v0_dll/g2o/cmake_modules/FindG2O.cmake) # 改成自己安装包
-#include(cmake/FindG2O.cmake)
+#include("/home/r9000k/v1_software/openvslam/g2o-20201223_git/cmake_modules/FindG2O.cmake") # 改成自己安装包
+include(cmake/FindG2O.cmake)
 
 # 编译节点
 add_executable(v1_node main.cpp)

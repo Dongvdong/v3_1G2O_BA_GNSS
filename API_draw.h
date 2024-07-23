@@ -99,7 +99,8 @@ void DrawTrajectory(const TrajectoryType &gt, const TrajectoryType &esti) {
     glLineWidth(2);
     for (size_t i = 0; i < gt.size() - 1; i++) {
       glColor3f(0.0f, 0.0f, 1.0f);  // blue for ground truth
-      glBegin(GL_LINES);
+      glBegin(GL_LINES);  //GL_POINTS
+      //glBegin(GL_POINTS)
       auto p1 = gt[i], p2 = gt[i + 1];
       glVertex3d(p1.translation()[0], p1.translation()[1], p1.translation()[2]);
       glVertex3d(p2.translation()[0], p2.translation()[1], p2.translation()[2]);
@@ -109,6 +110,7 @@ void DrawTrajectory(const TrajectoryType &gt, const TrajectoryType &esti) {
     for (size_t i = 0; i < esti.size() - 1; i++) {
       glColor3f(1.0f, 0.0f, 0.0f);  // red for estimated
       glBegin(GL_LINES);
+      //glBegin(GL_POINTS);
       auto p1 = esti[i], p2 = esti[i + 1];
       glVertex3d(p1.translation()[0], p1.translation()[1], p1.translation()[2]);
       glVertex3d(p2.translation()[0], p2.translation()[1], p2.translation()[2]);
@@ -149,6 +151,7 @@ void DrawTrajectory3(const TrajectoryType &groundtruth, const TrajectoryType &es
     for (size_t i = 0; i < groundtruth.size() - 1; i++) {
       glColor3f(0.0f, 0.0f, 1.0f);  // blue for ground truth
       glBegin(GL_LINES);
+      //glBegin(GL_POINTS);
       auto p1 = groundtruth[i], p2 = groundtruth[i + 1];
       glVertex3d(p1.translation()[0], p1.translation()[1], p1.translation()[2]);
       glVertex3d(p2.translation()[0], p2.translation()[1], p2.translation()[2]);
@@ -170,9 +173,11 @@ void DrawTrajectory3(const TrajectoryType &groundtruth, const TrajectoryType &es
     for (size_t i = 0; i < optimized_pose.size() - 1; i++) {
       glColor3f(0.0f, 1.0f, 0.0f);  // green for optimized_pose
       glBegin(GL_LINES);
+      //glBegin(GL_POINTS);
+      int distance_=0;
       auto p1 = optimized_pose[i], p2 = optimized_pose[i + 1];
-      glVertex3d(p1.translation()[0], p1.translation()[1], p1.translation()[2]);
-      glVertex3d(p2.translation()[0], p2.translation()[1], p2.translation()[2]);
+      glVertex3d(p1.translation()[0], p1.translation()[1], p1.translation()[2]+distance_);
+      glVertex3d(p2.translation()[0], p2.translation()[1], p2.translation()[2]+distance_);
       glEnd();
     }
 
@@ -182,35 +187,46 @@ void DrawTrajectory3(const TrajectoryType &groundtruth, const TrajectoryType &es
 
 }
 
-
-void compute_rmse(){
-
-  string groundtruth_file = "./data/groundtruth.txt";
-  string estimated_file = "./data/estimated.txt";
+double cal_rmse( TrajectoryType &groundtruth,TrajectoryType &estimated){
 
 
-
-  TrajectoryType groundtruth = ReadTrajectory(groundtruth_file);
-  TrajectoryType estimated = ReadTrajectory(estimated_file);
-  assert(!groundtruth.empty() && !estimated.empty());
-  assert(groundtruth.size() == estimated.size());
-
-
-  
-
-  // compute rmse
+ // // compute rmse
   double rmse = 0;
   for (size_t i = 0; i < estimated.size(); i++) {
     Sophus::SE3d p1 = estimated[i], p2 = groundtruth[i];
     double error = (p2.inverse() * p1).log().norm();
     rmse += error * error;
+
   }
   rmse = rmse / double(estimated.size());
   rmse = sqrt(rmse);
-  cout << "RMSE = " << rmse << endl;
-
-  DrawTrajectory(groundtruth, estimated);
-
+  
+  //cout << "RMSE = " << rmse << endl;
+  return rmse;
 }
+
+
+double cal_rmse_t( TrajectoryType &groundtruth,TrajectoryType &estimated){
+
+
+ // // compute rmse
+  double rmse = 0;
+  for (size_t i = 0; i < estimated.size(); i++) {
+    Sophus::SE3d p1 = estimated[i], p2 = groundtruth[i];
+    Eigen::Vector3d t_1 = p1.translation();
+    Eigen::Vector3d t_2 = p2.translation();
+
+    Eigen::Vector3d error  = (t_2- t_1);
+    rmse += error.squaredNorm();//用 squaredNorm() 计算误差平方和
+
+  }
+  rmse = rmse / double(estimated.size());
+  rmse = sqrt(rmse);
+  
+  //cout << "RMSE = " << rmse << endl;
+  return rmse;
+}
+
+
 
 #endif 
