@@ -20,13 +20,19 @@
 #include <g2o/solvers/dense/linear_solver_dense.h>
 #include <g2o/core/robust_kernel_impl.h>
 
+#include <g2o/core/base_binary_edge.h>
+#include <g2o/types/slam3d/se3quat.h> // 包含 SE3Quat 类型的头文件
+#include <g2o/types/sba/types_six_dof_expmap.h>
 
 #include <chrono>
 #include <sophus/se3.hpp>
 using namespace std;
 using namespace cv;
 
-/// vertex and edges used in g2o ba
+
+
+
+/// 视觉点 6维度
 class VertexPose : public g2o::BaseVertex<6, Sophus::SE3d> {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -48,6 +54,36 @@ public:
 };
 
  
+// GNSS提供的位置顶点类
+class VertexGNSS : public g2o::BaseVertex<3, Eigen::Vector3d>
+{
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    virtual void setToOriginImpl() override
+    {
+        _estimate.setZero();
+    }
+
+    virtual void oplusImpl(const double* update) override
+    {
+        _estimate += Eigen::Vector3d(update);
+    }
+
+    virtual bool read(std::istream& is) override
+    {
+        // Implement reading from stream if needed
+        return false;
+    }
+
+    virtual bool write(std::ostream& os) const override
+    {
+        // Implement writing to stream if needed
+        return false;
+    }
+};
+
+
 /// g2o edge  观测值维度3 类型 Vector3d  优化节点第一个  VertexPose
 class GNSSConstraintEdge : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, VertexPose> {
 public:
@@ -67,21 +103,19 @@ public:
         // 齐次t
         //const Vec4_t t_wc_h(t_wc(0), t_wc(1), t_wc(2), 1);
         //_error = srt * t_wc_h - _measurement; // slam->real ecef - 测量gps->ecef
-
-       
-        _error = t_cw - _measurement; //_measurement  这个误差通常定义为 VO-enu 转换后的坐标与 gnss-enu 之间的欧几里得距离。 GNSS_ENU
+        _error = t_cw - _GNSS_ENU; //_measurement  这个误差通常定义为 VO-enu 转换后的坐标与 gnss-enu 之间的欧几里得距离。 GNSS_ENU
        
   
   }
+
+
+  
  
-// virtual void linearizeOplus() override {
-// //   //   VertexPose *pose = static_cast<VertexPose *>(_vertices[0]);
-// //   //   Sophus::SE3d T = pose->estimate();
-// //   //   Eigen::Vector3d xyz_trans = T * _point;
-// //   //   _jacobianOplusXi.block<3, 3>(0, 0) = -Eigen::Matrix3d::Identity();
-// //   //   _jacobianOplusXi.block<3, 3>(0, 3) = Sophus::SO3d::hat(xyz_trans);
-//      _jacobianOplusXi =Eigen::Matrix3d::Identity(); //假设同一个坐标
-//  }
+ virtual void linearizeOplus() override {
+
+    g2o::BaseUnaryEdge<3, Eigen::Vector3d, VertexPose>::linearizeOplus();// 继承自动求导
+
+ }
  
   bool read(istream &in) {}
  
@@ -95,11 +129,11 @@ protected:
 
 /// g2o edge  观测值维度3 类型 Vector3d  优化节点第一个  VertexPose
 
-class EdgeRelativeRT : public g2o::BaseUnaryEdge<6, Sophus::SE3d, VertexPose>
+class EdgeRelativeRT : public g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose ,VertexPose>
 {
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-    
+    //EdgeRelativeRT() : g2o::BaseBinaryEdge<6, Eigen::Isometry3d, g2o::VertexSE3Expmap, g2o::VertexSE3Expmap>() {}
     // 构造函数重写
     EdgeRelativeRT(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,double t_var, double R_var)
         : R(R), t(t), t_var(t_var), R_var(R_var)
@@ -114,6 +148,9 @@ public:
         Sophus::SE3d T_iw = vi->estimate();
         Sophus::SE3d T_jw = vj->estimate();
         Sophus::SE3d T_ij = T_iw.inverse() * T_jw;   // j在 i坐标系下的位姿
+
+        // Vector6d error = T_ij.log(); 
+        // _error = error;
 
         // 提取平移和旋转部分
         Eigen::Vector3d t_ij = T_ij.translation();  // j在 i坐标系下的位姿
@@ -141,7 +178,7 @@ public:
     {
         // g2o会自动使用数值微分来计算雅可比矩阵。
         // 通常情况下，除非需要提高性能，否则无需提供解析雅可比矩阵。
-        g2o::BaseUnaryEdge<6, Sophus::SE3d, VertexPose>::linearizeOplus();
+        g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose,VertexPose>::linearizeOplus();
     }
 
     virtual bool read(std::istream& is) {}
@@ -155,46 +192,57 @@ private:
 
 
 // 定义一个继承自g2o::BaseBinaryEdge的边类
-
-// class EdgeRelativeMotion : public g2o::BaseBinaryEdge <6, Sophus::SE3d, VertexPose>
-// {
+// 定义 EdgeSE3Expmap 类，继承自 g2o::BaseBinaryEdge，表示连接两个位姿节点的边
+// class EdgeSE3Expmap : public g2o::BaseBinaryEdge<6, Eigen::Isometry3d, g2o::VertexSE3Expmap, g2o::VertexSE3Expmap> {
 // public:
 //     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-//     EdgeRelativeMotion() {}
+//     EdgeSE3Expmap() : g2o::BaseBinaryEdge<6, Eigen::Isometry3d, g2o::VertexSE3Expmap, g2o::VertexSE3Expmap>() {}
 
-//     // 边的计算函数，计算误差（残差）
-//     void computeError()
-//     {
-//         // 从顶点获取估计值
-//         const VertexPose* v1 = static_cast<const VertexPose*>(_vertices[0]);
-//         const VertexPose* v2 = static_cast<const VertexPose*>(_vertices[1]);
+//     // 计算误差，即当前测量值与估计值之间的差异
+//     virtual void computeError() {
+//         // 获取两个顶点的估计值
+//         const g2o::VertexSE3Expmap* v1 = static_cast<const g2o::VertexSE3Expmap*>(_vertices[0]);
+//         const g2o::VertexSE3Expmap* v2 = static_cast<const g2o::VertexSE3Expmap*>(_vertices[1]);
 
-//         // 计算相对运动
-//         Sophus::SE3d T1 = v1->estimate();
-//         Sophus::SE3d T2 = v2->estimate();
-//         Sophus::SE3d T_rel = T1.inverse() * T2;
+//         // 估计的变换
+//         Eigen::Isometry3d estimate1 = v1->estimate();
+//         Eigen::Isometry3d estimate2 = v2->estimate();
 
-//         // 提取平移和旋转部分
-//         Eigen::Vector3d t_rel = T_rel.translation();
-//         Eigen::Matrix3d R_rel = T_rel.rotationMatrix();
+//         // 当前测量值
+//         Eigen::Isometry3d measured = _measurement;
 
-//         // 计算误差（残差）
-//         _error.head<3>() = (t_rel - _measurement.translation()) / _measurement.translationSigma();
-//         _error.tail<3>() = g2o::internal::toVectorMQ(R_rel * _measurement.rotationMatrix());
+//         // 计算误差，这里假设误差为估计值与测量值之间的差异
+//         _error = (measured.inverse() * (estimate1.inverse() * estimate2)).log();
 //     }
 
-//     // 线性化函数（可选）
-//     virtual void linearizeOplus()
-//     {
-//         // g2o会自动使用数值微分来计算雅可比矩阵。
-//         // 通常情况下，除非需要提高性能，否则无需提供解析雅可比矩阵。
-//         g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose, VertexPose>::linearizeOplus();
+//     // 线性化边，计算误差对优化变量的雅可比矩阵
+//     virtual void linearizeOplus() {
+//         // 获取两个顶点的估计值
+//         g2o::VertexSE3Expmap* v1 = static_cast<g2o::VertexSE3Expmap*>(_vertices[0]);
+//         g2o::VertexSE3Expmap* v2 = static_cast<g2o::VertexSE3Expmap*>(_vertices[1]);
+
+//         // 估计的变换
+//         Eigen::Isometry3d estimate1 = v1->estimate();
+//         Eigen::Isometry3d estimate2 = v2->estimate();
+
+//         // 当前测量值
+//         Eigen::Isometry3d measured = _measurement;
+
+//         // 计算误差对节点1的雅可比矩阵
+//         Eigen::Matrix<double, 6, 6> J1 = g2o::internal::toCompactQuaternion(estimate2.rotation().inverse() * estimate1.rotation()).toRotationMatrix();
+
+//         // 计算误差对节点2的雅可比矩阵
+//         Eigen::Matrix<double, 6, 6> J2 = -g2o::internal::toCompactQuaternion(estimate2.rotation().inverse()).toRotationMatrix();
+
+//         // 设置边的线性化雅可比矩阵
+//         _jacobianOplusXi = J1;
+//         _jacobianOplusXj = J2;
 //     }
 
-//     virtual bool read(std::istream& is) {}
-//     virtual bool write(std::ostream& os) const {}
-
+//     // 读取和写入边的数据
+//     virtual bool read(std::istream& is) { return true; }
+//     virtual bool write(std::ostream& os) const { return true; }
 // };
 
 
@@ -397,7 +445,7 @@ R替换为q
       GNSSConstraintEdge *edge = new GNSSConstraintEdge(Gnss_enu_i); //GNSS ENU真值 3D-2D是图像1的3d点
       edge->setId(i);
       edge->setVertex(0, vi); // 获取优化第一个节点位姿 没有第二个节点位姿
-      edge->setMeasurement(Gnss_enu_i); //GNSS ENU真值 3D-2D是图像2的像素点
+      //edge->setMeasurement(Gnss_enu_i); //GNSS ENU真值 3D-2D是图像2的像素点 初始化已经送入
       edge->setInformation(Eigen::Matrix3d::Identity());
       
       // 胡函数 防止利群点误差过大干扰整体结果
