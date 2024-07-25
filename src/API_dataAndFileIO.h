@@ -174,4 +174,32 @@ void Get_TestValue(vector<Vector3d>& source_points ,vector<Vector3d>& target_poi
 }
 
 
+
+// 主线程生成3D点的函数
+void generatePoints( vector<Vector3d> &source_points,vector<Vector3d> &target_points) {
+ 
+  // 1-2 设置source_points到 target_points变换矩阵
+    Matrix3d RelativeR;
+    Vector3d Relativet;
+    double currentScale=1;
+    //RelativeR<<1,0,0,0,1,0,0,0,1;// 单位阵
+    //RelativeR<<0,-1,0,1,0,0,0,0,1; // 旋转90度
+    double yaw = 0;    // 绕Z轴的角度
+    double pitch = 0;  // 绕Y轴的角度
+    double roll = 0;   // 绕X轴的角度
+    RelativeR = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())
+          * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())
+          * Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
+    cout<< "RelativeR "<<RelativeR <<endl;
+    Relativet<<0,0,0;
+    // 1-3 获取随机测试点
+    Get_TestValue(source_points,target_points,currentScale,RelativeR,Relativet);
+
+ 
+}
+
+
+
+
+
 #endif 

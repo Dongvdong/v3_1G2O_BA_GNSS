@@ -54,7 +54,7 @@ public:
 };
 
  
-// GNSS提供的位置顶点类
+// GNSS提供的位置顶点类  没必要使用
 class VertexGNSS : public g2o::BaseVertex<3, Eigen::Vector3d>
 {
 public:
