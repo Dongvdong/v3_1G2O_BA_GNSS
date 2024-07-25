@@ -191,7 +191,7 @@ void generatePoints( vector<Vector3d> &source_points,vector<Vector3d> &target_po
           * Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY())
           * Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX());
     cout<< "RelativeR "<<RelativeR <<endl;
-    Relativet<<0,0,0;
+    Relativet<<10,10,10;
     // 1-3 获取随机测试点
     Get_TestValue(source_points,target_points,currentScale,RelativeR,Relativet);
 

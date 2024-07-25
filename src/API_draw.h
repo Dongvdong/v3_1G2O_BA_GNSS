@@ -222,10 +222,7 @@ void displayline_3_thread(vector<Vector3d> &GNSS_points,TrajectoryType &VO_point
       .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -1024.0f / 768.0f)
       .SetHandler(new pangolin::Handler3D(s_cam));
  
-    
-
-
-
+  
   while (!pangolin::ShouldQuit()) {
         // 清空缓冲区
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -296,9 +293,9 @@ void displayline_3_thread(vector<Vector3d> &GNSS_points,TrajectoryType &VO_point
  
                     glColor3f(0,255, 0);  // 绿色 优化后的位姿
                     glBegin(GL_LINES);
-             
-                    glVertex3d(point1[0], point1[1], point1[2]);
-                    glVertex3d(point2[0], point2[1], point2[2]);
+                    int out=1;
+                    glVertex3d(point1[0]+out, point1[1], point1[2]);
+                    glVertex3d(point2[0]+out, point2[1], point2[2]);
                     glEnd();
  
                  

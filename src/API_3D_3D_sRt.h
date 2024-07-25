@@ -139,7 +139,7 @@ void API_ransac_ICP_3D_3D_sRt_inliner_sR(const vector<Vector3d>& source_points,
                      const vector<Vector3d>& target_points,
                      const int num_iterations,        //ransac随机抽取验证次数
                      const double error_threshold,    // 误差阈值 3         
-                     const int random_poinst_num,        
+                     
                      double& best_scale, Matrix3d& best_R, Vector3d& best_t) {
   
    
