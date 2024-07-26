@@ -137,19 +137,30 @@ void API_ICP_3D_3D_sRt(const vector<Vector3d>& source_points,
  
 void API_ransac_ICP_3D_3D_sRt_inliner_sR(const vector<Vector3d>& source_points,
                      const vector<Vector3d>& target_points,
-                     const int num_iterations,        //ransac随机抽取验证次数
+                     int num_iterations,        //ransac随机抽取验证次数
                      const double error_threshold,    // 误差阈值 3         
                      
                      double& best_scale, Matrix3d& best_R, Vector3d& best_t) {
   
    
+
+
+
+
  
     // 1 数据准备
     int best_inlier_count = 0; // 最大内点数
   
     int N = source_points.size();
- 
     //cout<<  "总点数  " << N << endl;
+
+    int num_rancek_temp = N * (N - 1) / 2; // 随机挑选2个点验证 一共多少次
+    if(num_rancek_temp<num_iterations) 
+    {
+        num_iterations=num_rancek_temp;//ransac随机抽取验证次数
+    }
+      
+
   
     // 全体点计算质心
     Vector3d centroid_source = Vector3d::Zero();

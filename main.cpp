@@ -95,9 +95,9 @@ void Pub_data_GNSS_VO(
 
 }
 
-void bundleAdjustment_GNSS_thread(
+void bundleAdjustment_GNSS_thread1(
   const vector<Vector3d>  &Gnss_enus,
-  const TrajectoryType &Camera_poses,
+  TrajectoryType &Camera_poses,
   TrajectoryType &optimized_poses,
   mutex &queueMutex,
   Eigen::Matrix4d &T_vo_to_GNSS_ENU
@@ -105,36 +105,90 @@ void bundleAdjustment_GNSS_thread(
 ){
 
 cout<< "优化线程开启"<<endl;
+
+
+int intail_srt=0;
 while (1){
  
     cout<< "GNSS新数据到来"<<endl;
     if(Gnss_enus.size()>=3){
+     
+    double s;
+    Matrix3d R;
+    Vector3d t;  
+    vector<Vector3d> source_points;
+    vector<Vector3d> target_points;
 
-      double s;
-      Matrix3d R;
-      Vector3d t;  
-      vector<Vector3d> source_points;
-      vector<Vector3d> target_points;
+     if(!intail_srt)
+     {
+        intail_srt=1;
+
+        for(int i=0; i<Gnss_enus.size();i++){
+            source_points.push_back(Camera_poses[i].translation());
+            target_points.push_back(Gnss_enus[i]);
+        }
+        
+        int N=Gnss_enus.size();
+        int num_combinations = N * (N - 1) / 2; // 随机挑选2个点验证 一共多少次
+        if(num_combinations>1000) num_combinations=1000;
+        
+
+        API_ransac_ICP_3D_3D_sRt_inliner_sR(source_points,target_points,
+                              num_combinations,        //ransac随机抽取验证次数
+                              3,          // 误差阈值 3         
+                              s, R, t) ;
+        T_vo_to_GNSS_ENU.block<3, 3>(0, 0) = s * R;
+        T_vo_to_GNSS_ENU.block<3, 1>(0, 3) = t;
+     }
+  
+      bundleAdjustment_GNSS(Gnss_enus,Camera_poses,optimized_poses,queueMutex,T_vo_to_GNSS_ENU);
+
+
+
       for(int i=0; i<Gnss_enus.size();i++){
           source_points.push_back(Camera_poses[i].translation());
           target_points.push_back(Gnss_enus[i]);
       }
       
-      int N=Gnss_enus.size();
-      int num_combinations = N * (N - 1) / 2; // 随机挑选2个点验证 一共多少次
-      if(num_combinations>1000) num_combinations=1000;
-      
+
 
       API_ransac_ICP_3D_3D_sRt_inliner_sR(source_points,target_points,
-                            num_combinations,        //ransac随机抽取验证次数
+                            1000,        //ransac随机抽取验证次数
                             3,          // 误差阈值 3         
                             s, R, t) ;
           
     
-        T_vo_to_GNSS_ENU.block<3, 3>(0, 0) = s * R;
-        T_vo_to_GNSS_ENU.block<3, 1>(0, 3) = t;
+      T_vo_to_GNSS_ENU.block<3, 3>(0, 0) = s * R;
+      T_vo_to_GNSS_ENU.block<3, 1>(0, 3) = t;
 
-        bundleAdjustment_GNSS(Gnss_enus,Camera_poses,optimized_poses,queueMutex,T_vo_to_GNSS_ENU);
+
+      // for(int i=0; i<Gnss_enus.size();i++){
+      //   Camera_poses[i]=optimized_poses[i];
+      // }
+
+      for(int i=0;i<optimized_poses.size();i++){
+
+  
+            Eigen::Matrix4d optimized_poses_ = optimized_poses[i].matrix();     //  optimized_poses 如果是错的 后面srt也是错的
+            Matrix3d R_ = Eigen::Matrix3d::Identity();
+            Vector3d t_ = optimized_poses_.block<3, 1>(0, 3) ;
+
+            Eigen::Vector4d t_cw_4(t_(0), t_(1), t_(2), 1);
+            Eigen::Vector4d t_cw_4_out= T_vo_to_GNSS_ENU*t_cw_4;
+            Eigen::Vector3d t_cw_3(t_cw_4_out(0), t_cw_4_out(1), t_cw_4_out(2));
+
+            // Eigen::Matrix3d R_cw_to_gw =T_vo_to_GNSS_ENU.block<3, 3>(0, 0); // 包含了尺度
+            // Eigen::Vector3d t_cw_to_gw = T_vo_to_GNSS_ENU.block<3, 1>(0, 3);// 
+            // Eigen::Vector3d t_gw = R_cw_to_gw.inverse()*t_-t_cw_to_gw;// GNSS-ENU全局坐标
+
+
+            //Matrix3d R_ = optimized_pose_to_target.block<3, 3>(0, 0) ;
+
+            Sophus::SE3d SE3_Rt(R_, t_cw_3);     
+
+            optimized_poses[i]=SE3_Rt;
+        }
+
       
     }
 
@@ -150,6 +204,115 @@ while (1){
 
 }
 
+
+void bundleAdjustment_GNSS_thread(
+  const vector<Vector3d>  &Gnss_enus,
+  TrajectoryType &Camera_poses,
+  TrajectoryType &optimized_poses,
+  mutex &queueMutex,
+  Eigen::Matrix4d &T_vo_to_GNSS_ENU
+  
+){
+
+cout<< "优化线程开启"<<endl;
+
+
+int intail_srt=0;
+while (1){
+ 
+    cout<< "GNSS新数据到来"<<endl;
+    if(Gnss_enus.size()>=3){
+     
+    double s;
+    Matrix3d R;
+    Vector3d t;  
+    vector<Vector3d> source_points;
+    vector<Vector3d> target_points;
+
+     if(!intail_srt)
+     {
+        intail_srt=1;
+
+        for(int i=0; i<Gnss_enus.size();i++){
+            source_points.push_back(Camera_poses[i].translation());
+            target_points.push_back(Gnss_enus[i]);
+        }
+        
+        int N=Gnss_enus.size();
+        int num_combinations = N * (N - 1) / 2; // 随机挑选2个点验证 一共多少次
+        if(num_combinations>1000) num_combinations=1000;
+        
+
+        API_ransac_ICP_3D_3D_sRt_inliner_sR(source_points,target_points,
+                              num_combinations,        //ransac随机抽取验证次数
+                              3,          // 误差阈值 3         
+                              s, R, t) ;
+        T_vo_to_GNSS_ENU.block<3, 3>(0, 0) = s * R;
+        T_vo_to_GNSS_ENU.block<3, 1>(0, 3) = t;
+     }
+  
+      bundleAdjustment_GNSS(Gnss_enus,Camera_poses,optimized_poses,queueMutex,T_vo_to_GNSS_ENU);
+
+
+
+      for(int i=0; i<Gnss_enus.size();i++){
+          source_points.push_back(Camera_poses[i].translation());
+          target_points.push_back(Gnss_enus[i]);
+      }
+      
+
+
+      API_ransac_ICP_3D_3D_sRt_inliner_sR(source_points,target_points,
+                            1000,        //ransac随机抽取验证次数
+                            3,          // 误差阈值 3         
+                            s, R, t) ;
+          
+    
+      T_vo_to_GNSS_ENU.block<3, 3>(0, 0) = s * R;
+      T_vo_to_GNSS_ENU.block<3, 1>(0, 3) = t;
+
+
+      // for(int i=0; i<Gnss_enus.size();i++){
+      //   Camera_poses[i]=optimized_poses[i];
+      // }
+
+      for(int i=0;i<optimized_poses.size();i++){
+
+  
+            Eigen::Matrix4d optimized_poses_ = optimized_poses[i].matrix();     //  optimized_poses 如果是错的 后面srt也是错的
+            Matrix3d R_ = Eigen::Matrix3d::Identity();
+            Vector3d t_ = optimized_poses_.block<3, 1>(0, 3) ;
+
+            Eigen::Vector4d t_cw_4(t_(0), t_(1), t_(2), 1);
+            Eigen::Vector4d t_cw_4_out= T_vo_to_GNSS_ENU*t_cw_4;
+            Eigen::Vector3d t_cw_3(t_cw_4_out(0), t_cw_4_out(1), t_cw_4_out(2));
+
+            // Eigen::Matrix3d R_cw_to_gw =T_vo_to_GNSS_ENU.block<3, 3>(0, 0); // 包含了尺度
+            // Eigen::Vector3d t_cw_to_gw = T_vo_to_GNSS_ENU.block<3, 1>(0, 3);// 
+            // Eigen::Vector3d t_gw = R_cw_to_gw.inverse()*t_-t_cw_to_gw;// GNSS-ENU全局坐标
+
+
+            //Matrix3d R_ = optimized_pose_to_target.block<3, 3>(0, 0) ;
+
+            Sophus::SE3d SE3_Rt(R_, t_cw_3);     
+
+            optimized_poses[i]=SE3_Rt;
+        }
+
+      
+    }
+
+    else if(Gnss_enus.size()>=99){
+
+     break;
+
+    }
+    sleep(3); // 每秒生成一个点
+  }
+
+
+
+}
 
 int main(int argc, char **argv) {
 

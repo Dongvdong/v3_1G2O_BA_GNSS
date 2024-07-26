@@ -172,6 +172,71 @@ protected:
 
 /// g2o edge  观测值维度3 类型 Vector3d  优化节点第一个  VertexPose
 
+// class GNSSEdgeRelative_t : public g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose ,VertexPose>
+// {
+// public:
+//     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+//     //EdgeRelativeRT() : g2o::BaseBinaryEdge<6, Eigen::Isometry3d, g2o::VertexSE3Expmap, g2o::VertexSE3Expmap>() {}
+//     // 构造函数重写
+//     GNSSEdgeRelative_t(const Eigen::Vector3d& tij_gnss)
+//         : tij_gnss(tij_gnss)
+//     {}
+
+//     void computeError()
+//     {
+//         const VertexPose* vi = static_cast<const VertexPose*>(_vertices[0]);
+//         const VertexPose* vj = static_cast<const VertexPose*>(_vertices[1]);
+
+//         // 计算相对变换 T_ij  局部坐标系
+//         Sophus::SE3d T_iw = vi->estimate();
+//         Sophus::SE3d T_jw = vj->estimate();
+//         Sophus::SE3d T_ij = T_iw.inverse() * T_jw;   // j在 i坐标系下的位姿
+
+//         // Vector6d error = T_ij.log(); 
+//         // _error = error;
+
+//         // 提取平移和旋转部分
+//         Eigen::Vector3d t_ij = T_ij.translation();  // j在 i坐标系下的位姿
+//         Eigen::Matrix3d R_ij = T_ij.rotationMatrix(); // j在 i坐标系下的位姿
+
+//         // 计算残差
+//         Eigen::Matrix3d R_error = R_ij.transpose() * R; // j在 i坐标系下的位姿
+//         Eigen::Vector3d t_error = (t - t_ij); // j在 i坐标系下的位姿
+
+//         _error[0] = t_error.x() / t_var;
+//         _error[1] = t_error.y() / t_var;
+//         _error[2] = t_error.z() / t_var;
+         
+//         // 待定
+//         Eigen::AngleAxisd aa(R_error); //一个旋转表示为一个轴向量和一个角度。
+//         Eigen::Vector3d axis = aa.axis(); // axis 是一个单位向量，描述了旋转的轴方向
+//         double angle = aa.angle();// angle 则是旋转的角度（弧度制）
+//         //这些值用来衡量旋转矩阵 R_error 相对于期望旋转矩阵的偏差，其中 R_var 是用来加权误差的方差参数。以便后续在优化过程中进行误差最小化的计算。
+//         _error[3] = axis.x() * angle / R_var;
+//         _error[4] = axis.y() * angle / R_var;
+//         _error[5] = axis.z() * angle / R_var;
+//     }
+
+//     virtual void linearizeOplus()
+//     {
+//         // g2o会自动使用数值微分来计算雅可比矩阵。
+//         // 通常情况下，除非需要提高性能，否则无需提供解析雅可比矩阵。
+//         g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose,VertexPose>::linearizeOplus();
+//     }
+
+//     virtual bool read(std::istream& is) {}
+//     virtual bool write(std::ostream& os) const {}
+
+// private:
+   
+//     Eigen::Vector3d tij_gnss;
+
+// };
+
+
+
+/// g2o edge  观测值维度3 类型 Vector3d  优化节点第一个  VertexPose
+
 class EdgeRelativeRT : public g2o::BaseBinaryEdge<6, Sophus::SE3d, VertexPose ,VertexPose>
 {
 public:
