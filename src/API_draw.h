@@ -294,8 +294,8 @@ void displayline_3_thread(vector<Vector3d> &GNSS_points,TrajectoryType &VO_point
                     glColor3f(0,255, 0);  // 绿色 优化后的位姿
                     glBegin(GL_LINES);
                     int out=0;
-                    glVertex3d(point1[0]+out, point1[1], point1[2]);
-                    glVertex3d(point2[0]+out, point2[1], point2[2]);
+                    glVertex3d(point1[0]+1, point1[1], point1[2]);
+                    glVertex3d(point2[0]+1, point2[1], point2[2]);
                     glEnd();
  
                  
