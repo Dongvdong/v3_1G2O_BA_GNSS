@@ -32,7 +32,7 @@ double cal_rmse( TrajectoryType &groundtruth,TrajectoryType &estimated){
 }
 
 
-double cal_rmse_t( TrajectoryType &groundtruth,TrajectoryType &estimated){
+double cal_rmse_t_se3_se3( TrajectoryType &groundtruth,TrajectoryType &estimated){
 
 
  // // compute rmse
@@ -53,6 +53,27 @@ double cal_rmse_t( TrajectoryType &groundtruth,TrajectoryType &estimated){
   return rmse;
 }
 
+double cal_rmse_t_v3d_se3(  vector<Vector3d>  &groundtruth,TrajectoryType &estimated){
+
+
+ // // compute rmse
+  double rmse = 0;
+  for (size_t i = 0; i < estimated.size(); i++) {
+    //Sophus::SE3d p1 = estimated[i];
+    //Eigen::Vector3d p2 = groundtruth[i];
+    Eigen::Vector3d t_1 = estimated[i].translation();
+    Eigen::Vector3d t_2 = groundtruth[i];
+
+    Eigen::Vector3d error  = (t_2- t_1);
+    rmse += error.squaredNorm();//用 squaredNorm() 计算误差平方和 norm平方根
+
+  }
+  rmse = rmse / double(estimated.size());
+  rmse = sqrt(rmse);
+  
+  //cout << "RMSE = " << rmse << endl;
+  return rmse;
+}
 
  
  //  变换点和目标点计算误差

@@ -155,7 +155,7 @@ void API_ransac_ICP_3D_3D_sRt_inliner_sR(const vector<Vector3d>& source_points,
     //cout<<  "总点数  " << N << endl;
 
     int num_rancek_temp = N * (N - 1) / 2; // 随机挑选2个点验证 一共多少次
-    if(num_rancek_temp<num_iterations) 
+    if(num_rancek_temp<num_iterations) // 限制下最大次数 节省时间 1000次足以找出
     {
         num_iterations=num_rancek_temp;//ransac随机抽取验证次数
     }
